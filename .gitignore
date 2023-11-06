@@ -1,3 +1,5 @@
+/build*
+
 # Created by https://www.toptal.com/developers/gitignore/api/cmake,c,c++,rust,windows,macos,linux,visualstudio,visualstudiocode,clion+all,vim,emacs
 # Edit at https://www.toptal.com/developers/gitignore?templates=cmake,c,c++,rust,windows,macos,linux,visualstudio,visualstudiocode,clion+all,vim,emacs
 
