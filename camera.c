@@ -72,12 +72,12 @@ int setup_camera(char* camera_file_path, int width, int height) {
 
 struct v4l2_requestbuffers* request_mmap_buffers(int camera_fd, int buffer_count){
     struct v4l2_requestbuffers* request_buffers = (struct v4l2_requestbuffers*) malloc(sizeof(struct v4l2_requestbuffers));
-    memset(&request_buffers, 0, sizeof(request_buffers));
+    memset(request_buffers, 0, sizeof(*request_buffers));
     request_buffers->count = buffer_count;
     request_buffers->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     request_buffers->memory = V4L2_MEMORY_MMAP;
 
-    if (ioctl(camera_fd, VIDIOC_REQBUFS, &request_buffers) == -1) {
+    if (ioctl(camera_fd, VIDIOC_REQBUFS, request_buffers) == -1) {
         if (errno == EINVAL) {
             printf("Video capturing or mmap-streaming is not supported\n");
         } else {
@@ -96,7 +96,7 @@ struct v4l2_requestbuffers* request_mmap_buffers(int camera_fd, int buffer_count
 
 struct buffer* map_buffers(int fd, struct v4l2_requestbuffers* request_buffers) {
     struct buffer *buffers;
-    buffers = calloc(request_buffers->count, sizeof(struct buffer));
+    buffers = calloc(request_buffers->count, sizeof(*buffers));
 
     for (int i = 0; i < request_buffers->count; ++i) {
         struct v4l2_buffer buffer;
@@ -105,7 +105,7 @@ struct buffer* map_buffers(int fd, struct v4l2_requestbuffers* request_buffers) 
         buffer.memory = V4L2_MEMORY_MMAP;
         buffer.index = i;
 
-        if (ioctl(fd, VIDIOC_QUERYBUF) == -1) {
+        if (ioctl(fd, VIDIOC_QUERYBUF, &buffer) == -1) {
             perror("VIDIOC_QUERYBUF");
             return NULL;
         }
@@ -133,9 +133,11 @@ void cleanup_buffers(struct buffer* buffers, size_t buffers_length) {
 }
 
 int start_stream(int fd) {
-    return ioctl(fd, VIDIOC_STREAMON, NULL);
+    int stream_type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    return ioctl(fd, VIDIOC_STREAMON, &stream_type);
 }
 
 int stop_stream(int fd) {
-    return ioctl(fd, VIDIOC_STREAMOFF, NULL);
+    int stream_type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    return ioctl(fd, VIDIOC_STREAMOFF, &stream_type);
 }
