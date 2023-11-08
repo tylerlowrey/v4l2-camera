@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <errno.h>
+#include <sys/mman.h>
 
 #include "camera.h"
 
@@ -93,6 +94,48 @@ struct v4l2_requestbuffers* request_mmap_buffers(int camera_fd, int buffer_count
     return request_buffers;
 }
 
-struct buffer* map_buffers(struct v4l2_requestbuffers* request_buffers) {
-    return NULL;
+struct buffer* map_buffers(int fd, struct v4l2_requestbuffers* request_buffers) {
+    struct buffer *buffers;
+    buffers = calloc(request_buffers->count, sizeof(struct buffer));
+
+    for (int i = 0; i < request_buffers->count; ++i) {
+        struct v4l2_buffer buffer;
+        memset(&buffer, 0, sizeof(buffer));
+        buffer.type = request_buffers->type;
+        buffer.memory = V4L2_MEMORY_MMAP;
+        buffer.index = i;
+
+        if (ioctl(fd, VIDIOC_QUERYBUF) == -1) {
+            perror("VIDIOC_QUERYBUF");
+            return NULL;
+        }
+
+        buffers[i].length = buffer.length;
+        buffers[i].start = mmap(NULL, buffer.length, PROT_READ | PROT_WRITE, MAP_SHARED,
+                                fd, buffer.m.offset);
+
+        if (buffers[i].start == MAP_FAILED) {
+            cleanup_buffers(buffers, request_buffers->count);
+            return NULL;
+        }
+
+    }
+
+    return buffers;
+}
+
+void cleanup_buffers(struct buffer* buffers, size_t buffers_length) {
+    for (int i = 0; i < buffers_length; ++i) {
+        if (buffers[i].start > 0)
+            munmap(buffers[i].start, buffers[i].length);
+    }
+    free(buffers);
+}
+
+int start_stream(int fd) {
+    return ioctl(fd, VIDIOC_STREAMON, NULL);
+}
+
+int stop_stream(int fd) {
+    return ioctl(fd, VIDIOC_STREAMOFF, NULL);
 }

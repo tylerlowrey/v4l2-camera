@@ -20,7 +20,9 @@ int main() {
 
     printf("request_mmap_buffers returned %d buffers", request_buffers->count);
 
-    map_buffers(request_buffers);
+    struct buffer* buffers = map_buffers(camera_fd, request_buffers);
+
+    start_stream(camera_fd);
 
     return 0;
 }

@@ -17,6 +17,9 @@ int setup_camera(char* camera_file_path, int width, int height);
  */
 struct v4l2_requestbuffers* request_mmap_buffers(int camera_file_descriptor, int buffer_count);
 
+/**
+ * A struct containing a pointer to a mmapped buffer (mapped during map_buffers)
+ */
 struct buffer {
     void *start;
     size_t length;
@@ -24,7 +27,29 @@ struct buffer {
 
 /**
  * Uses mmap to map the requested buffers retrieved from a call to request_mmap_buffers
- * @param request_buffers
- * @return - An array of mmapped buffer structs
+ * @param fd - The file descriptor of the open device
+ * @param request_buffers - The result from a call to request_mmap_buffers
+ * @return - A pointer to an array of mmapped buffer structs
  */
-struct buffer* map_buffers(struct v4l2_requestbuffers* request_buffers);
+struct buffer* map_buffers(int fd, struct v4l2_requestbuffers* request_buffers);
+
+/**
+ * Unmaps and frees an array of buffer structs
+ * @param buffers - a pointer to an array of buffer structs
+ * @param buffers_length - Number of buffer structs in the array
+ */
+void cleanup_buffers(struct buffer* buffers, size_t buffers_length);
+
+/**
+ * Starts the camera stream
+ * @param fd - The file descriptor for the open video capture device
+ * @return - 0 for success, -1 for failure (passes return value from ioctl VIDIOC_STREAMON call )
+ */
+int start_stream(int fd);
+
+/**
+ * Stops the camera stream
+ * @param fd - The file descriptor for the open video capture device
+ * @return - 0 for success, -1 for failure (passes return value from ioctl VIDIOC_STREAMOFF call )
+ */
+int stop_stream(int fd);
