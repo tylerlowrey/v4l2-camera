@@ -61,6 +61,7 @@ int setup_camera(char* camera_file_path, int width, int height) {
     // Convert fourCC to readable string
     char fourCC[5];
     strncpy(fourCC, (char*) &get_format_command.fmt.pix.pixelformat, 4);
+    fourCC[4] = '\n';
 
     printf("Video capture format info [width: %d, height: %d, pixelformat: %s]\n",
            get_format_command.fmt.pix.width,
@@ -130,6 +131,44 @@ void cleanup_buffers(struct buffer* buffers, size_t buffers_length) {
             munmap(buffers[i].start, buffers[i].length);
     }
     free(buffers);
+}
+
+void queue_buffers(int fd, size_t num_buffers) {
+    struct v4l2_buffer buffer;
+
+    for (int i = 0; i < num_buffers; ++i) {
+        memset(&buffer, 0, sizeof(buffer));
+        buffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+        buffer.memory = V4L2_MEMORY_MMAP;
+        buffer.index = i;
+
+        if (-1 == ioctl(fd, VIDIOC_QBUF, &buffer))
+            perror("VIDIOC_QBUF");
+    }
+}
+
+int dequeue_buffer(int fd) {
+    struct v4l2_buffer buffer;
+    memset(&buffer, 0, sizeof(buffer));
+    buffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    buffer.memory = V4L2_MEMORY_MMAP;
+
+    if (ioctl(fd, VIDIOC_DQBUF, &buffer) == -1) {
+        return -1;
+    }
+
+    // TODO
+    return buffer.index;
+}
+
+int requeue_buffer(int fd, int buffer_index) {
+    struct v4l2_buffer buffer;
+    memset(&buffer, 0, sizeof(buffer));
+    buffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    buffer.memory = V4L2_MEMORY_MMAP;
+    buffer.index = buffer_index;
+
+    return ioctl(fd, VIDIOC_QBUF, &buffer);
 }
 
 int start_stream(int fd) {

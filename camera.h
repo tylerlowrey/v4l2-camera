@@ -41,6 +41,28 @@ struct buffer* map_buffers(int fd, struct v4l2_requestbuffers* request_buffers);
 void cleanup_buffers(struct buffer* buffers, size_t buffers_length);
 
 /**
+ * Queue buffers 0 through num_buffers
+ * @param fd - Open file descriptor to the device
+ * @param num_buffers - The total number of buffers to queue
+ */
+void queue_buffers(int fd, size_t num_buffers);
+
+/**
+ * Tries to dequeue a buffer
+ * @param fd - File descriptor to open device
+ * @return The index of the dequeued buffer or < 0 for an error
+ */
+int dequeue_buffer(int fd);
+
+/**
+ * Re-queues a buffer (identified by its index) so that it can be used again
+ * @param fd - File descriptor to open device
+ * @param buffer_index - Index of the buffer to re-queue
+ * @return
+ */
+int requeue_buffer(int fd, int buffer_index);
+
+/**
  * Starts the camera stream
  * @param fd - The file descriptor for the open video capture device
  * @return - 0 for success, -1 for failure (passes return value from ioctl VIDIOC_STREAMON call )
