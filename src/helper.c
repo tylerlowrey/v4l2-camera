@@ -1,30 +1,26 @@
 #include "helper.h"
 
-uint8_t clamp_rgb(double value) {
-    if (value < 0) return 0;
-    if (value > 255) return 255;
-    return (uint8_t)value;
-}
+int write_grayscale_image_to_file(const char* filename, struct image_u8* grayscale_img) {
+    FILE *file = fopen(filename, "wb");
+    if (!file) {
+        perror("Unable to open file for writing");
+        return -1;
+    }
 
-void yuyv_to_rgb(uint8_t y1, uint8_t u, uint8_t y2, uint8_t v, uint8_t* rgb) {
-    // Conversion coefficients from YUV to RGB
-    const double YtoR = 1.164383;
-    const double UtoG = -0.391762;
-    const double UtoB = 2.017232;
-    const double VtoR = 1.596027;
-    const double VtoG = -0.812968;
+    int maximum_color_value = 255;
+    fprintf(file, "P5\n%d %d\n%d\n", grayscale_img->width, grayscale_img->height, maximum_color_value);
 
-    // Calculate Cb and Cr from U and V (with 128 subtracted)
-    double cb = u - 128;
-    double cr = v - 128;
+    size_t bytes_written = 0;
+    for (int i = 0; i < grayscale_img->height; ++i) {
+        bytes_written += fwrite(grayscale_img->buf + i * grayscale_img->stride, 1, grayscale_img->width, file);
+    }
 
-    // Convert YUYV to RGB for the first pixel
-    rgb[0] = clamp_rgb(YtoR * (y1 - 16) + VtoR * cr);
-    rgb[1] = clamp_rgb(YtoR * (y1 - 16) + UtoG * cb + VtoG * cr);
-    rgb[2] = clamp_rgb(YtoR * (y1 - 16) + UtoB * cb);
+    if (bytes_written != grayscale_img->width * grayscale_img->height) {
+        perror("Error writing grayscale data to PPM file");
+        fclose(file);
+        return -1;
+    }
 
-    // Convert YUYV to RGB for the second pixel
-    rgb[3] = clamp_rgb(YtoR * (y2 - 16) + VtoR * cr);
-    rgb[4] = clamp_rgb(YtoR * (y2 - 16) + UtoG * cb + VtoG * cr);
-    rgb[5] = clamp_rgb(YtoR * (y2 - 16) + UtoB * cb);
+    fclose(file);
+    return 0;
 }
