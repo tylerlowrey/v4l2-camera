@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <arpa/inet.h>
 
 #include "camera.h"
 #include "helper.h"
@@ -10,8 +11,21 @@ int FRAME_WIDTH = 800;
 int FRAME_HEIGHT = 600;
 int NUM_BUFFERS = 20;
 
+int setup_socket(struct sockaddr_in* socket_address, char* server_ip, uint16_t server_port);
 
-int main() {
+int main(int argc, char *argv[]) {
+    if (argc != 3) {
+        printf("Usage: %s <server address> <server port>\\n", argv[0]);
+        return 1;
+    }
+
+    char* server_address = argv[1];
+    uint16_t server_port = (uint16_t)atoi(argv[2]);
+
+    struct sockaddr_in socket_address;
+    int socket_fd = setup_socket(&socket_address, server_address, server_port);
+
+
     int camera_fd = setup_camera("/dev/video0", FRAME_WIDTH, FRAME_HEIGHT);
 
     if (camera_fd == -1) {
@@ -49,6 +63,7 @@ int main() {
 
     char* filename = (char*) malloc(sizeof(char) * 128);
     const char* filename_format = "build/output_%d.ppm";
+    unsigned char udp_data[2] = { 0, 0};
 
     for (int i = 0; i < 10000; ++i) {
         int buffer_index = dequeue_buffer(camera_fd);
@@ -64,7 +79,7 @@ int main() {
         prepare_frame_for_processing(&buffers[buffer_index], grayscale_image_buffers[buffer_index]);
         snprintf(filename, sizeof(char) * 128, filename_format, i % 20);
 
-#ifdef DEBUG
+#if DEBUG
         write_grayscale_image_to_file(filename, grayscale_image_buffers[buffer_index]);
 #endif
 
@@ -75,8 +90,15 @@ int main() {
 
         if (detected_apriltag_id == -1) {
             printf("No april tag detected\n");
+            udp_data[0] = 0;
+            udp_data[1] = 0;
+            sendto(socket_fd, udp_data, sizeof(udp_data), 0, (const struct sockaddr*) &socket_address, sizeof(socket_address));
+
         } else {
             printf("Detected april tag with ID: %d\n", detected_apriltag_id);
+            udp_data[0] = detected_apriltag_id;
+            udp_data[1] = 1;
+            sendto(socket_fd, udp_data, sizeof(udp_data), 0, (const struct sockaddr*) &socket_address, sizeof(socket_address));
         }
 
         while (requeue_buffer(camera_fd, buffer_index) == -1) {
@@ -107,7 +129,19 @@ int main() {
     return 0;
 }
 
+int setup_socket(struct sockaddr_in* socket_address, char* server_ip, uint16_t server_port) {
+    int socket_fd;
+    if ((socket_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+        perror("Socket creation failed");
+        return socket_fd;
+    }
 
+    memset(socket_address, 0, sizeof(*socket_address));
+    socket_address->sin_family = AF_INET;
+    socket_address->sin_port = htons(server_port);
+    socket_address->sin_addr.s_addr = inet_addr(server_ip);
+    return socket_fd;
+}
 
 
 
